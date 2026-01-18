@@ -1,3 +1,27 @@
+## v0.6.3 (2026-01-17)
+
+### New Features
+
+- **Journal Entry Management Tools**
+  - `create-journal-entry` - Create new journal entries with title, content, and folder organization
+  - `update-journal-entry` - Modify existing journal entries (title, content, folder, permissions)
+  - `delete-journal-entry` - Remove journal entries from the campaign
+  - `add-journal-page` - Add new pages to existing journal entries with rich text content
+  - `get-journal-entry` - Retrieve journal entries with all pages and metadata
+  - `update-journal-page` - Modify page content, title, and formatting
+  - `delete-journal-page` - Remove specific pages from journal entries
+  - Full support for Foundry VTT's rich text editor and page types
+  - Permission-aware operations (GM-only for sensitive content)
+
+### Technical Improvements
+
+- **Centralized Tools Registry** - Refactored backend to use a unified `ToolsRegistry` class
+  - Eliminated ~150 lines of repetitive switch statement code
+  - Improved maintainability and consistency across all tools
+  - Simplified addition of new tools to the system
+
+---
+
 ## v0.6.2 (2025-12-03)
 
 ### New Features
