@@ -3077,7 +3077,7 @@ export class FoundryDataAccess {
   /**
    * Create journal entry for quests
    */
-  async createJournalEntry(request: { name: string; content: string; folderName?: string }): Promise<{ id: string; name: string }> {
+  async createJournalEntry(request: { name: string; content: string; folder?: string; img?: string }): Promise<{ id: string; name: string }> {
     this.validateFoundryState();
 
     // Use permission system for journal creation
@@ -3091,18 +3091,28 @@ export class FoundryDataAccess {
 
     try {
       // Create journal entry with proper Foundry v13 structure
-      const journalData = {
+      const journalData: any = {
         name: request.name,
         pages: [{
           type: 'text',
-          name: 'Quest Details', // Use generic page name to avoid title repetition
+          name: 'Page 1',
           text: {
-            content: request.content
+            content: request.content,
+            format: 1 // HTML format
           }
         }],
         ownership: { default: 0 }, // GM only by default
-        folder: await this.getOrCreateFolder(request.folderName || request.name, 'JournalEntry')
       };
+
+      // Add optional fields
+      if (request.img) journalData.img = request.img;
+      if (request.folder) {
+        // Find folder by name or ID
+        const folderObj = game.folders.find((f: any) =>
+          f.name === request.folder || f.id === request.folder
+        );
+        if (folderObj) journalData.folder = folderObj.id;
+      }
 
       const journal = await JournalEntry.create(journalData);
       
@@ -3206,6 +3216,344 @@ export class FoundryDataAccess {
 
     } catch (error) {
       this.auditLog('updateJournalContent', request, 'failure', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  /**
+   * Update journal entry properties (name, image, folder, etc.)
+   */
+  async updateJournalEntry(request: { journalId: string; updates: any }): Promise<{ success: boolean; journalId: string; journalName: string; message: string }> {
+    this.validateFoundryState();
+
+    // Use permission system for journal updates
+    const permissionCheck = permissionManager.checkWritePermission('createActor', {
+      quantity: 1,
+    });
+
+    if (!permissionCheck.allowed) {
+      throw new Error(`Journal update denied: ${permissionCheck.reason}`);
+    }
+
+    try {
+      // Find journal by ID or name
+      let journal = game.journal.get(request.journalId);
+      if (!journal) {
+        journal = game.journal.find((j: any) => j.name === request.journalId);
+      }
+
+      if (!journal) {
+        throw new Error(`Journal not found: ${request.journalId}`);
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+
+      if (request.updates.name) updateData.name = request.updates.name;
+      if (request.updates.img) updateData.img = request.updates.img;
+
+      if (request.updates.folder) {
+        const folderObj = game.folders.find((f: any) =>
+          f.name === request.updates.folder || f.id === request.updates.folder
+        );
+        if (folderObj) updateData.folder = folderObj.id;
+      }
+
+      // Update journal properties
+      if (Object.keys(updateData).length > 0) {
+        await journal.update(updateData);
+      }
+
+      // Update page content if provided
+      if (request.updates.content) {
+        const pageId = request.updates.pageId || journal.pages.contents[0]?.id;
+        if (pageId) {
+          const page = journal.pages.get(pageId);
+          if (page) {
+            await page.update({
+              "text.content": request.updates.content
+            });
+          }
+        }
+      }
+
+      this.auditLog('updateJournalEntry', request, 'success');
+      return {
+        success: true,
+        journalId: journal.id,
+        journalName: journal.name,
+        message: `Updated journal: ${journal.name}`
+      };
+
+    } catch (error) {
+      this.auditLog('updateJournalEntry', request, 'failure', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a journal entry
+   */
+  async deleteJournalEntry(request: { journalId: string }): Promise<{ success: boolean; deletedId: string; deletedName: string; message: string }> {
+    this.validateFoundryState();
+
+    // Use permission system for journal deletion
+    const permissionCheck = permissionManager.checkWritePermission('createActor', {
+      quantity: 1,
+    });
+
+    if (!permissionCheck.allowed) {
+      throw new Error(`Journal deletion denied: ${permissionCheck.reason}`);
+    }
+
+    try {
+      // Find journal by ID or name
+      let journal = game.journal.get(request.journalId);
+      if (!journal) {
+        journal = game.journal.find((j: any) => j.name === request.journalId);
+      }
+
+      if (!journal) {
+        throw new Error(`Journal not found: ${request.journalId}`);
+      }
+
+      const journalName = journal.name;
+      await journal.delete();
+
+      this.auditLog('deleteJournalEntry', request, 'success');
+      return {
+        success: true,
+        deletedId: request.journalId,
+        deletedName: journalName,
+        message: `Deleted journal: ${journalName}`
+      };
+
+    } catch (error) {
+      this.auditLog('deleteJournalEntry', request, 'failure', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  /**
+   * Add a new page to an existing journal entry
+   */
+  async addJournalPage(request: { journalId: string; pageName: string; content: string; pageType?: string; sort?: number }): Promise<{ success: boolean; journalId: string; journalName: string; pageId: string; pageName: string; message: string }> {
+    this.validateFoundryState();
+
+    // Use permission system for journal page creation
+    const permissionCheck = permissionManager.checkWritePermission('createActor', {
+      quantity: 1,
+    });
+
+    if (!permissionCheck.allowed) {
+      throw new Error(`Journal page creation denied: ${permissionCheck.reason}`);
+    }
+
+    try {
+      // Find journal by ID or name
+      let journal = game.journal.get(request.journalId);
+      if (!journal) {
+        journal = game.journal.find((j: any) => j.name === request.journalId);
+      }
+
+      if (!journal) {
+        throw new Error(`Journal not found: ${request.journalId}`);
+      }
+
+      // Prepare page data
+      const pageData: any = {
+        name: request.pageName,
+        type: request.pageType || 'text'
+      };
+
+      if (pageData.type === 'text') {
+        pageData.text = {
+          content: request.content,
+          format: 1 // HTML
+        };
+      }
+
+      if (request.sort !== undefined) {
+        pageData.sort = request.sort;
+      }
+
+      // Create the page
+      const pages = await journal.createEmbeddedDocuments('JournalEntryPage', [pageData]);
+      const page = pages[0];
+
+      this.auditLog('addJournalPage', request, 'success');
+      return {
+        success: true,
+        journalId: journal.id,
+        journalName: journal.name,
+        pageId: page.id,
+        pageName: page.name,
+        message: `Added page "${page.name}" to journal "${journal.name}"`
+      };
+
+    } catch (error) {
+      this.auditLog('addJournalPage', request, 'failure', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  /**
+   * Get detailed information about a journal entry
+   */
+  async getJournalEntry(request: { journalId: string; includeContent?: boolean }): Promise<any> {
+    this.validateFoundryState();
+
+    try {
+      // Find journal by ID or name
+      let journal = game.journal.get(request.journalId);
+      if (!journal) {
+        journal = game.journal.find((j: any) => j.name === request.journalId);
+      }
+
+      if (!journal) {
+        throw new Error(`Journal not found: ${request.journalId}`);
+      }
+
+      // Build response
+      const response: any = {
+        success: true,
+        id: journal.id,
+        name: journal.name,
+        img: journal.img,
+        folder: journal.folder?.name || null,
+        pages: journal.pages.contents.map((page: any) => ({
+          id: page.id,
+          name: page.name,
+          type: page.type,
+          sort: page.sort,
+          ...(request.includeContent && page.type === 'text' ? {
+            content: page.text.content
+          } : {})
+        })),
+        ownership: journal.ownership,
+        totalPages: journal.pages.size
+      };
+
+      return response;
+
+    } catch (error) {
+      throw new Error(`Failed to get journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update a specific page within a journal entry
+   */
+  async updateJournalPage(request: { journalId: string; pageId: string; updates: any }): Promise<{ success: boolean; journalId: string; journalName: string; pageId: string; pageName: string; message: string }> {
+    this.validateFoundryState();
+
+    // Use permission system for journal page updates
+    const permissionCheck = permissionManager.checkWritePermission('createActor', {
+      quantity: 1,
+    });
+
+    if (!permissionCheck.allowed) {
+      throw new Error(`Journal page update denied: ${permissionCheck.reason}`);
+    }
+
+    try {
+      // Find journal
+      let journal = game.journal.get(request.journalId);
+      if (!journal) {
+        journal = game.journal.find((j: any) => j.name === request.journalId);
+      }
+
+      if (!journal) {
+        throw new Error(`Journal not found: ${request.journalId}`);
+      }
+
+      // Find page
+      let page = journal.pages.get(request.pageId);
+      if (!page) {
+        page = journal.pages.find((p: any) => p.name === request.pageId);
+      }
+
+      if (!page) {
+        throw new Error(`Page not found: ${request.pageId}`);
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+
+      if (request.updates.name) updateData.name = request.updates.name;
+      if (request.updates.sort !== undefined) updateData.sort = request.updates.sort;
+      if (request.updates.content) updateData["text.content"] = request.updates.content;
+
+      // Update page
+      await page.update(updateData);
+
+      this.auditLog('updateJournalPage', request, 'success');
+      return {
+        success: true,
+        journalId: journal.id,
+        journalName: journal.name,
+        pageId: page.id,
+        pageName: page.name,
+        message: `Updated page "${page.name}" in journal "${journal.name}"`
+      };
+
+    } catch (error) {
+      this.auditLog('updateJournalPage', request, 'failure', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a specific page from a journal entry
+   */
+  async deleteJournalPage(request: { journalId: string; pageId: string }): Promise<{ success: boolean; journalId: string; journalName: string; deletedPageId: string; deletedPageName: string; message: string }> {
+    this.validateFoundryState();
+
+    // Use permission system for journal page deletion
+    const permissionCheck = permissionManager.checkWritePermission('createActor', {
+      quantity: 1,
+    });
+
+    if (!permissionCheck.allowed) {
+      throw new Error(`Journal page deletion denied: ${permissionCheck.reason}`);
+    }
+
+    try {
+      // Find journal
+      let journal = game.journal.get(request.journalId);
+      if (!journal) {
+        journal = game.journal.find((j: any) => j.name === request.journalId);
+      }
+
+      if (!journal) {
+        throw new Error(`Journal not found: ${request.journalId}`);
+      }
+
+      // Find page
+      let page = journal.pages.get(request.pageId);
+      if (!page) {
+        page = journal.pages.find((p: any) => p.name === request.pageId);
+      }
+
+      if (!page) {
+        throw new Error(`Page not found: ${request.pageId}`);
+      }
+
+      const pageName = page.name;
+      await page.delete();
+
+      this.auditLog('deleteJournalPage', request, 'success');
+      return {
+        success: true,
+        journalId: journal.id,
+        journalName: journal.name,
+        deletedPageId: request.pageId,
+        deletedPageName: pageName,
+        message: `Deleted page "${pageName}" from journal "${journal.name}"`
+      };
+
+    } catch (error) {
+      this.auditLog('deleteJournalPage', request, 'failure', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }

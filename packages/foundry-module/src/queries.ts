@@ -57,6 +57,12 @@ export class QueryHandlers {
     CONFIG.queries[`${modulePrefix}.listJournals`] = this.handleListJournals.bind(this);
     CONFIG.queries[`${modulePrefix}.getJournalContent`] = this.handleGetJournalContent.bind(this);
     CONFIG.queries[`${modulePrefix}.updateJournalContent`] = this.handleUpdateJournalContent.bind(this);
+    CONFIG.queries[`${modulePrefix}.updateJournalEntry`] = this.handleUpdateJournalEntry.bind(this);
+    CONFIG.queries[`${modulePrefix}.deleteJournalEntry`] = this.handleDeleteJournalEntry.bind(this);
+    CONFIG.queries[`${modulePrefix}.addJournalPage`] = this.handleAddJournalPage.bind(this);
+    CONFIG.queries[`${modulePrefix}.getJournalEntry`] = this.handleGetJournalEntry.bind(this);
+    CONFIG.queries[`${modulePrefix}.updateJournalPage`] = this.handleUpdateJournalPage.bind(this);
+    CONFIG.queries[`${modulePrefix}.deleteJournalPage`] = this.handleDeleteJournalPage.bind(this);
 
     // Phase 4: Dice roll queries
     CONFIG.queries[`${modulePrefix}.request-player-rolls`] = this.handleRequestPlayerRolls.bind(this);
@@ -491,6 +497,8 @@ export class QueryHandlers {
       return await this.dataAccess.createJournalEntry({
         name: data.name,
         content: data.content,
+        folder: data.folder,
+        img: data.img,
       });
     } catch (error) {
       throw new Error(`Failed to create journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -564,6 +572,162 @@ export class QueryHandlers {
       });
     } catch (error) {
       throw new Error(`Failed to update journal content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Handle update journal entry request
+   */
+  async handleUpdateJournalEntry(data: { journalId: string; updates: any }): Promise<any> {
+    try {
+      // SECURITY: Silent GM validation
+      const gmCheck = this.validateGMAccess();
+      if (!gmCheck.allowed) {
+        return { error: 'Access denied', success: false };
+      }
+
+      this.dataAccess.validateFoundryState();
+
+      if (!data.journalId) {
+        throw new Error('journalId is required');
+      }
+      if (!data.updates) {
+        throw new Error('updates is required');
+      }
+
+      return await this.dataAccess.updateJournalEntry(data);
+    } catch (error) {
+      throw new Error(`Failed to update journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Handle delete journal entry request
+   */
+  async handleDeleteJournalEntry(data: { journalId: string }): Promise<any> {
+    try {
+      // SECURITY: Silent GM validation
+      const gmCheck = this.validateGMAccess();
+      if (!gmCheck.allowed) {
+        return { error: 'Access denied', success: false };
+      }
+
+      this.dataAccess.validateFoundryState();
+
+      if (!data.journalId) {
+        throw new Error('journalId is required');
+      }
+
+      return await this.dataAccess.deleteJournalEntry(data);
+    } catch (error) {
+      throw new Error(`Failed to delete journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Handle add journal page request
+   */
+  async handleAddJournalPage(data: { journalId: string; pageName: string; content: string; pageType?: string; sort?: number }): Promise<any> {
+    try {
+      // SECURITY: Silent GM validation
+      const gmCheck = this.validateGMAccess();
+      if (!gmCheck.allowed) {
+        return { error: 'Access denied', success: false };
+      }
+
+      this.dataAccess.validateFoundryState();
+
+      if (!data.journalId) {
+        throw new Error('journalId is required');
+      }
+      if (!data.pageName) {
+        throw new Error('pageName is required');
+      }
+      if (!data.content) {
+        throw new Error('content is required');
+      }
+
+      return await this.dataAccess.addJournalPage(data);
+    } catch (error) {
+      throw new Error(`Failed to add journal page: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Handle get journal entry request
+   */
+  async handleGetJournalEntry(data: { journalId: string; includeContent?: boolean }): Promise<any> {
+    try {
+      // SECURITY: Silent GM validation
+      const gmCheck = this.validateGMAccess();
+      if (!gmCheck.allowed) {
+        return { error: 'Access denied', success: false };
+      }
+
+      this.dataAccess.validateFoundryState();
+
+      if (!data.journalId) {
+        throw new Error('journalId is required');
+      }
+
+      return await this.dataAccess.getJournalEntry(data);
+    } catch (error) {
+      throw new Error(`Failed to get journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Handle update journal page request
+   */
+  async handleUpdateJournalPage(data: { journalId: string; pageId: string; updates: any }): Promise<any> {
+    try {
+      // SECURITY: Silent GM validation
+      const gmCheck = this.validateGMAccess();
+      if (!gmCheck.allowed) {
+        return { error: 'Access denied', success: false };
+      }
+
+      this.dataAccess.validateFoundryState();
+
+      if (!data.journalId) {
+        throw new Error('journalId is required');
+      }
+      if (!data.pageId) {
+        throw new Error('pageId is required');
+      }
+      if (!data.updates) {
+        throw new Error('updates is required');
+      }
+
+      return await this.dataAccess.updateJournalPage(data);
+    } catch (error) {
+      throw new Error(`Failed to update journal page: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Handle delete journal page request
+   */
+  async handleDeleteJournalPage(data: { journalId: string; pageId: string }): Promise<any> {
+    try {
+      // SECURITY: Silent GM validation
+      const gmCheck = this.validateGMAccess();
+      if (!gmCheck.allowed) {
+        return { error: 'Access denied', success: false };
+      }
+
+      this.dataAccess.validateFoundryState();
+
+      if (!data.journalId) {
+        throw new Error('journalId is required');
+      }
+      if (!data.pageId) {
+        throw new Error('pageId is required');
+      }
+
+      return await this.dataAccess.deleteJournalPage(data);
+    } catch (error) {
+      throw new Error(`Failed to delete journal page: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

@@ -34,6 +34,8 @@ import { MapGenerationTools } from './tools/map-generation.js';
 
 import { TokenManipulationTools } from './tools/token-manipulation.js';
 
+import { JournalTools } from './tools/journal.js';
+
 import { DSA5CharacterCreator } from './systems/dsa5/character-creator.js';
 
 const CONTROL_HOST = '127.0.0.1';
@@ -1078,6 +1080,8 @@ async function startBackend(): Promise<void> {
 
   const tokenManipulationTools = new TokenManipulationTools({ foundryClient, logger });
 
+  const journalTools = new JournalTools({ foundryClient, logger });
+
   // Initialize mapgen-style backend components for map generation
   let mapGenerationJobQueue: any = null;
   let mapGenerationComfyUIClient: any = null;
@@ -1308,6 +1312,8 @@ async function startBackend(): Promise<void> {
     ...ownershipTools.getToolDefinitions(),
 
     ...tokenManipulationTools.getToolDefinitions(),
+
+    ...journalTools.getToolDefinitions(),
 
     ...mapGenerationTools.getToolDefinitions(),
 
@@ -1600,6 +1606,50 @@ async function startBackend(): Promise<void> {
                 case 'get-available-conditions':
 
                   result = await tokenManipulationTools.handleGetAvailableConditions(args);
+
+                  break;
+
+                // Journal tools
+
+                case 'create-journal-entry':
+
+                  result = await journalTools.handleCreateJournalEntry(args);
+
+                  break;
+
+                case 'update-journal-entry':
+
+                  result = await journalTools.handleUpdateJournalEntry(args);
+
+                  break;
+
+                case 'delete-journal-entry':
+
+                  result = await journalTools.handleDeleteJournalEntry(args);
+
+                  break;
+
+                case 'add-journal-page':
+
+                  result = await journalTools.handleAddJournalPage(args);
+
+                  break;
+
+                case 'get-journal-entry':
+
+                  result = await journalTools.handleGetJournalEntry(args);
+
+                  break;
+
+                case 'update-journal-page':
+
+                  result = await journalTools.handleUpdateJournalPage(args);
+
+                  break;
+
+                case 'delete-journal-page':
+
+                  result = await journalTools.handleDeleteJournalPage(args);
 
                   break;
 
