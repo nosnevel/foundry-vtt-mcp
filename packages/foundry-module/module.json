@@ -36,7 +36,7 @@
   ],
   "socket": true,
   "manifest": "https://raw.githubusercontent.com/nosnevel/foundry-vtt-mcp/journal-entries/packages/foundry-module/module.json",
-  "download": "https://github.com/nosnevel/foundry-vtt-mcp/releases",
+  "download": "https://github.com/nosnevel/foundry-vtt-mcp/releases/download/v0.6.2/foundry-mcp-bridge.zip",
   "protected": false,
   "coreTranslation": false,
   "library": false,
